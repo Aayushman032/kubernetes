@@ -1,0 +1,76 @@
+###################### UPGRADING THE CLUSTER  ########################
+
+
+kubectl --version   					 ## Get version of the server
+
+sudo apt-mark unhold kubeadm kubelet     ## Release the hold of versions on kubeadm and kubelet
+
+sudo apt install -y kubeadm=1.18.5-00    ## Install new version of kubeadm
+
+sudo apt-mark hold kubeadm 				 ## mark hold on kubeadm
+
+kubeadm versions                         ## check version of kubeadm
+
+sudo kubeadm upgrade plan				 ## Plan the upgrade before executing
+
+sudo kubeadm upgrade apply v1.18.5       ## Upgrade the controller components
+
+sudo apt-mark unhold kubectl 			 ## Release hold of kubectl 
+
+sudo apt install -y kubectl=1.18.5-00	 ## Upgrade kubectl
+
+sudo apt-mark hold kubectl 				 ## Hold the version of kubectl
+
+sudo apt install -y kubelet=1.18.5-00	 ## Upgrade kubelet
+
+sudo apt-mark hold kubelet 				 ## Hold the version of kubelet
+
+
+##########################  OS UPGRADE OF NODE ##############################
+
+
+
+kubectl drain [node name] --ignore-daemonsets 		## Evict the Pods on that node
+
+kubectl uncordan [node name]						## Schedule pods on that node
+
+kubectl delete node [node name]						## Add latest releases of kubeadm 
+
+kubeadm token list									## List the current tokens
+
+kubeadm token generate 								## Get a new token to join
+
+kubeadm token create <token name> --ttl 23h --print-join-command 		## Print the kubeadm join command
+
+
+
+######################## RESTORING A CLUSTER ################################
+
+
+wget https://github.com/etcd-io/etcd/releases/download/v3.3.12/etcd-v3.3.12-linux-amd64.tar.gz  		## Get the ETCD binaries
+
+tar xvf etcd-v3.3.12-linux-amd64.tar.gz 								## Unzip the binaries
+
+sudo mv etcd-v3.3.12-linux-amd64/etcd* /usr/local/binaries 				## Mo0ve the files to /usr/local/bin
+
+ETCDCTL_API=3 etcdctl snapshot save snapshot.db 						## Take a snapshot of ETCD
+
+ETCDCTL_API=3 etcdctl --help 											## See the avilable commands for etcdctl
+
+/etc/kubernetes/pki/etcd/ 												## The directory of your certificate file and snapshot of ETCD
+
+ETCDCTL_API=3 etcdctl --write-out=table snapshot status snapshot.db		## Check if the snapshot was successful
+
+sudo tar -zcvf etcd.tar.gz etcd 										## Zip the entire etcd Directory
+
+scp etcd.tar.gz cloud_user@IP:~/										## Copy etcd directory anywhere else
+
+
+
+######################## Random Imperitive Commands ####################################
+
+kubectl create pdb pdbdemo --min-available 50% --selector "app=nginx"             ## Create pod distruption budget 
+
+
+
+

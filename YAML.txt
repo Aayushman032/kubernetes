@@ -1,0 +1,236 @@
+## Simple Pod definition
+apiVersion: v1
+kind: Pod
+metadata:
+  name: maintenance-pod
+spec:
+  containers:
+  - name: busybox
+    image: busybox
+    command: ['sh', '-c', 'while true; do echo Success! >> /output/output.txt; sleep 5; done']
+    volumeMounts:
+    - name: ouput-vol
+      mountPath: /output
+  volumes:
+  - name: ouput-vol
+    hostPath:
+      path: /var/data
+
+---
+
+## Simple Pod definition
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shared-data-pod
+spec:
+  containers:
+  - name: busybox1
+    image: busybox
+    command: ['sh', '-c', 'while true; do echo Success! >> /output/output.txt; sleep 5; done']
+    volumeMounts:
+    - name: shared-vol
+      mountPath: /output
+  - name: busybox2
+    image: busybox
+    command: ['sh', '-c', 'while true; do cat /input/output.txt; sleep 5; done']
+    volumeMounts:
+    - name: shared-vol
+      mountPath: /input
+  volumes:
+  - name: shared-vol
+    emptyDir: {}
+
+---
+## StorageClass.yaml
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: localdisk
+provisioner: kubernetes.io/no-provioner
+allowVolumeExpansion: true
+
+---
+
+## Host-PersistentVolume.yaml
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: host-pv
+spec:
+  storageClassName: localdisk
+  persistentVolumeReclaimPolicy: Recycle
+  capacity:
+    storage: 1Gi
+  accessModes:
+    -  ReadWriteOnce
+  hostPath:
+    path: /var/ouput
+
+---
+
+## PersistentVolumeClaim
+## PersistentVolumeClaims can be mounted by referencing them within a Pod's volume.
+
+##PersistentVolumeClaims can be resizedm provided certain criteria are met.
+
+##PersistentVolumeClaims reference a storageclass, and they must reference the same StorageClass as a PersistentVolume in order to bind to that PersistentVolume.
+
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: host-pvc
+spec:
+  storageClassName: localdisk
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+
+
+---
+
+## Pod for pvc binding
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: maintenance-pod
+spec:
+  containers:
+  - name: busybox
+    image: busybox
+    command: ['sh', '-c', 'while true; do echo Success! >> /output/output.txt; sleep 5; done']
+    volumeMounts:
+    - name: pv-storage
+      mountPath: /output
+  volumes:
+  - name: pv-storage
+    persistentVolumeClaim:
+      claimName: host-pvc
+
+
+----
+
+#Create a simple Nginx Pod to use for testing, as well as a service to expose it:
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-netshoot
+  labels:
+    app: nginx-netshoot
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.19.1
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-netshoot
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx-netshoot
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+
+
+---
+
+## nodeport-service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-nodeport
+spec:
+  ports:
+  - name: "80"
+    port: 80
+    protocol: TCP
+    targetPort: 80
+    nodePort: 30080
+  selector:
+    app: nginx
+  type: NodePor
+
+
+---
+
+
+## Pod_Distruption_Budget.yaml
+
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: pdbdemo
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: nginx
+
+
+---
+
+## deployment_example.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nginx
+  name: dep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: nginx
+        name: nginx  
+  
+
+---
+
+## pod_for_node_affinity.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod1
+spec: 
+  containers:
+    image: nginx
+    name: pod1
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+         nodeSelectorTerms:
+           matchExpressions:
+             key: power
+             operator: In
+             values: 
+               flight
+
+
+---
+
+
+## persistentVolume.taml 
